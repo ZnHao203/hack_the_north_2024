@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "491849270239",
+    "project_id": "htn2024-d21be",
+    "storage_bucket": "htn2024-d21be.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:491849270239:android:15deac28837cfa0514fa6a",
+        "android_client_info": {
+          "package_name": "com.example.hack_the_north"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1pEaM5hIeR355vQJYCiC8Dt-_IuUy2rQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
