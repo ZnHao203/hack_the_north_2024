@@ -1,11 +1,73 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
+//import 'dart:async';
 
+// void updateUserLocation(String userID) async {
+//   // get and store
+//   Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+//   FirebaseFirestore.instance.collection('users').doc(userID).update({
+//     'location': GeoPoint(position.latitude, position.longitude),
+//     'lastUpdated': FieldValue.serverTimestamp(),
+//   });
+// }
 
+// // // Set a timer to update every 5 minutes
+// void handleTimeout(Timer timer) async{  // callback function
+//   // Do some work.
+//   updateUserLocation("0");
+//   _nearbyFriends.add("From counter");
+// }
+
+Future<void> sendLocationToFirestore(Position position) async {
+  FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  await firestore.collection('users').doc("0").update({
+    'location': GeoPoint(position.latitude, position.longitude),
+    'lastUpdated': FieldValue.serverTimestamp(),
+  });
+}
+
+Future<Position> getCurrentLocation() async {
+  return await Geolocator.getCurrentPosition(
+    desiredAccuracy: LocationAccuracy.high,
+  );
+}
+
+Future<void> requestLocationPermission() async {
+  LocationPermission permission = await Geolocator.requestPermission();
+  if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    // Handle permission denied
+    // do nothing for now
+    print("Can't get location permission!");
+  } else {
+    print("Got location permission! ");
+  }
+}
+
+void startLocationUpdates() {
+  Timer.periodic(Duration(minutes: 1), (Timer timer) async {
+    Position position = await getCurrentLocation();
+    await sendLocationToFirestore(position);
+  });
+}
 
 void main() {
   init_firebase();
+  //getLocationPermission();
+  // updateUserLocation("0");
+  // Timer(const Duration(seconds: 60), handleTimeout);
+  // Timer.periodic(const Duration(seconds: 60), (timer) {
+  //   handleTimeout();
+  // });
+  // final timer = Timer.periodic(const Duration(seconds: 10), handleTimeout);
+  // handleTimeout(timer);
+
+
   runApp(const MyApp());
 }
 
@@ -14,6 +76,8 @@ Future<void> init_firebase() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 }
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -65,16 +129,26 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+List<String> _nearbyFriends = ["FriendA", "FriendB", "FriendC"];
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  Timer? timer;
 
-  void _incrementCounter() {
+  @override
+  void initState() {
+    super.initState();
+    requestLocationPermission();
+    startLocationUpdates();
+  }
+
+  void _updateAllInfo() {
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
+      _nearbyFriends.add("Friend" + _counter.toString());
       _counter++;
     });
   }
@@ -84,6 +158,11 @@ class _MyHomePageState extends State<MyHomePage> {
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
+
+    // This functions gets friends nearby as a list and convert them to string
+    String getNearbyFriendsString() {
+      return _nearbyFriends.join('\n');
+    }
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
@@ -123,12 +202,19 @@ class _MyHomePageState extends State<MyHomePage> {
               '$_counter',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            const Text(
+              "Let's see who's online: "
+            ),
+            Text(
+              getNearbyFriendsString(),
+              style: TextStyle(fontSize: 12),
+            )
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
+        onPressed: _updateAllInfo,
+        tooltip: 'Update',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
