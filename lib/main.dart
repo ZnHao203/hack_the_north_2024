@@ -7,6 +7,8 @@ import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math';
+import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 //import 'dart:async';
 
 List<double> myLocationLatLong = [0,0];
@@ -203,7 +205,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Hangout & Chill'),
     );
   }
 }
@@ -229,7 +231,33 @@ class MyHomePage extends StatefulWidget {
 List<String> _nearbyFriends = ["FriendA", "FriendB", "FriendC"];
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  String _lastUpdated = '2024-09-14 – 23:30';
+
   Timer? timer;
+
+  List<Color> backgroundColors = [
+    Colors.cyan.shade100,
+    Colors.amber.shade100,
+    Colors.lightGreen.shade300,
+    Colors.red.shade200,
+    Colors.deepPurple.shade100,
+    Colors.orangeAccent.shade100,
+  ];
+
+  // Function to build each name line with a different background color
+  List<Widget> buildFriendList() {
+    return List<Widget>.generate(nearbyFriends.length, (index) {
+      return Container(
+        color: backgroundColors[index % backgroundColors.length], // Cycle through colors
+        padding: const EdgeInsets.all(8.0),
+        child: Text(
+          nearbyFriends[index],
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      );
+    });
+  }
+
 
   @override
   void initState() {
@@ -246,8 +274,10 @@ class _MyHomePageState extends State<MyHomePage> {
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
-      _nearbyFriends.add("Friend" + _counter.toString());
+      //_nearbyFriends.add("Friend" + _counter.toString());
       _counter++;
+      DateTime now = DateTime.now();
+      _lastUpdated = DateFormat('yyyy-MM-dd – kk:mm').format(now);
     });
   }
 
@@ -274,6 +304,7 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
+      backgroundColor: const Color(0xFF111c2d),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
@@ -293,27 +324,66 @@ class _MyHomePageState extends State<MyHomePage> {
           // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            const SizedBox(height: 20),
             const Text(
-              'You have pushed the button this many times:',
+              "Let's see who's nearby: ",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Text(
+              'Last Updated:',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+              ),
             ),
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              _lastUpdated,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+              ),
             ),
-            const Text(
-              "Let's see who's online: "
+
+            const SizedBox(height: 40),
+            // Text(
+            //   getNearbyFriendsString(),
+            //   style: TextStyle(fontSize: 12),
+            // ),
+            // Column(
+            //   crossAxisAlignment: CrossAxisAlignment.stretch,
+            //   children: buildFriendList(),
+            // ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: nearbyFriends.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    color: backgroundColors[index % backgroundColors.length], // Cycle through custom hex colors for background
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      nearbyFriends[index],
+                      style: TextStyle(
+                        color: Colors.black, // Cycle through custom hex colors for text
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                },
+              ),
             ),
-            Text(
-              getNearbyFriendsString(),
-              style: TextStyle(fontSize: 12),
-            )
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _updateAllInfo,
         tooltip: 'Update',
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.search_sharp),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
