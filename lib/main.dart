@@ -3,30 +3,45 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:math';
 //import 'dart:async';
 
-// void updateUserLocation(String userID) async {
-//   // get and store
-//   Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-//   FirebaseFirestore.instance.collection('users').doc(userID).update({
-//     'location': GeoPoint(position.latitude, position.longitude),
-//     'lastUpdated': FieldValue.serverTimestamp(),
-//   });
-// }
+List<double> myLocationLatLong = [0,0];
+List<String> nearbyFriends = [];
+List<String> allFriendsID = [
+  "userID01",
+  "userID18",
+  "userID05",
+  "userID10",
+  "userID35",
+  "userID75",
+  "userID85",
+  "userID88",
+  "userID90",
+];
 
-// // // Set a timer to update every 5 minutes
-// void handleTimeout(Timer timer) async{  // callback function
-//   // Do some work.
-//   updateUserLocation("0");
-//   _nearbyFriends.add("From counter");
-// }
+Future<void> getFriendsLocationFromFirestore(Position position) async {
+  FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  // await firestore.collection('users').doc("0").update({
+  //   'location': GeoPoint(position.latitude, position.longitude),
+  //   'lastUpdated': FieldValue.serverTimestamp(),
+  // });
+
+  await firestore.collection('users').doc("userID").update({
+    'distance': 100,
+    'location': GeoPoint(position.latitude, position.longitude),
+    'lastUpdated': FieldValue.serverTimestamp(),
+  });
+}
 
 Future<void> sendLocationToFirestore(Position position) async {
   FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  await firestore.collection('users').doc("0").update({
+  await firestore.collection('users').doc("userID").update({
     'location': GeoPoint(position.latitude, position.longitude),
     'lastUpdated': FieldValue.serverTimestamp(),
   });
@@ -38,6 +53,7 @@ Future<Position> getCurrentLocation() async {
   );
 }
 
+// in init
 Future<void> requestLocationPermission() async {
   LocationPermission permission = await Geolocator.requestPermission();
   if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
@@ -49,33 +65,114 @@ Future<void> requestLocationPermission() async {
   }
 }
 
+// Future<GeoPoint?> getUserLocation(String userID) async {
+Future<GeoPoint> getUserLocation(String userID) async {
+    // Get the document snapshot for userID (in this case "0")
+    DocumentSnapshot<Map<String, dynamic>> documentSnapshot =
+    await FirebaseFirestore.instance.collection('users').doc(userID).get();
+
+    // Check if the document exists
+    GeoPoint userLocation = GeoPoint(0,0);
+    if (documentSnapshot.exists) {
+      // Extract the 'location' field which is of type GeoPoint
+      userLocation = documentSnapshot.data()?['location'];
+    }
+    return userLocation;
+}
+
+Future<String> getUserName(String userID) async {
+  // Get the document snapshot for userID (in this case "0")
+  DocumentSnapshot<Map<String, dynamic>> documentSnapshot =
+  await FirebaseFirestore.instance.collection('users').doc(userID).get();
+
+  // Check if the document exists
+  String username = "You Know Who";
+  if (documentSnapshot.exists) {
+    // Extract the 'location' field which is of type GeoPoint
+    username = documentSnapshot.data()?['name'];
+  }
+  return username;
+}
+
+// unit meters
+double calculateDistance(double lat2, double lon2) {
+  // calculation for distance here:
+  double lat1 = myLocationLatLong[0];
+  double lon1 = myLocationLatLong[1];
+  double distance = 0;
+  print("calculate distance reached");
+  // print(lat1.toString());
+  // print(lon1.toString());
+  // print(lat2.toString());
+  // print(lon2.toString());
+  // https://community.fabric.microsoft.com/t5/Desktop/How-to-calculate-lat-long-distance/td-p/1488227
+  distance = acos(sin(lat1)*sin(lat2)+cos(lat1)*cos(lat2)*cos(lon2-lon1))*6371;
+  // print(distance);
+  // print("distance: ");
+  return distance;
+}
+
+Future<bool> isFriendNearby(String friendID) async {
+  bool isNearby = false;
+  GeoPoint friendPosition = await getUserLocation(friendID);
+  double distance = calculateDistance(friendPosition.latitude, friendPosition.longitude);
+  if (distance <= 10) {
+    isNearby = true;
+  }
+  return isNearby;
+
+}
+
+// sets the timer
+// void startLocationUpdates() {
+//   Timer.periodic(Duration(seconds: 10), (Timer timer) async {
+//     Position position = await getCurrentLocation();
+//     await sendLocationToFirestore(position);
+//   });
+// }
+
+Future<void> updateNearbyList(Position position) async {
+  // update my location - both locally and remotely
+  myLocationLatLong[0] = position.latitude;
+  myLocationLatLong[1] = position.longitude;
+  sendLocationToFirestore(position);
+  // who is nearby?
+  nearbyFriends = [];
+
+  bool isNearby = false;
+  String fname = "";
+  // calculation + update nearby list
+  for (String friendID in allFriendsID) {
+    isNearby = await isFriendNearby(friendID);
+    if (isNearby) {
+      fname = await getUserName(friendID);
+      nearbyFriends.add(fname);
+    }
+  }
+}
+
+// IMPORTANT: this updates everything, includes
+//  - my location
+//  - my friends location -> nearby list
 void startLocationUpdates() {
-  Timer.periodic(Duration(minutes: 1), (Timer timer) async {
+  Timer.periodic(Duration(seconds: 10), (Timer timer) async {
     Position position = await getCurrentLocation();
-    await sendLocationToFirestore(position);
+    await updateNearbyList(position);
   });
 }
 
 void main() {
-  init_firebase();
-  //getLocationPermission();
-  // updateUserLocation("0");
-  // Timer(const Duration(seconds: 60), handleTimeout);
-  // Timer.periodic(const Duration(seconds: 60), (timer) {
-  //   handleTimeout();
-  // });
-  // final timer = Timer.periodic(const Duration(seconds: 10), handleTimeout);
-  // handleTimeout(timer);
-
-
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  asyncRunApp();
 }
 
-Future<void> init_firebase() async {
+void asyncRunApp() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  runApp(const MyApp());
 }
+
 
 
 
@@ -138,6 +235,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     requestLocationPermission();
+
     startLocationUpdates();
   }
 
@@ -161,7 +259,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // This functions gets friends nearby as a list and convert them to string
     String getNearbyFriendsString() {
-      return _nearbyFriends.join('\n');
+      return nearbyFriends.join('\n');
     }
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
